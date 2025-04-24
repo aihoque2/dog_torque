@@ -1,32 +1,33 @@
 import mujoco
-import mujoco.viewer
 import numpy as np
+import cv2
+import mediapy as media
 import time
 
-DEFAULT_CAMERA_CONFIG = {
-    "azimuth": 90.0,
-    "distance": 3.0,
-    "elevation": -25.0,
-    "lookat": np.array([0.0, 0.0, 0.0]),
-    "fixedcamid": 0,
-    "trackbodyid": -1,
-    "type": 2,  # FREE camera
-}
-
-# Load MuJoCo model
-model = mujoco.MjModel.from_xml_path("unitree_go1/scene_torque.xml")
+# Load model and data
+model = mujoco.MjModel.from_xml_path("unitree_go1/scene.xml")
 data = mujoco.MjData(model)
 
-with mujoco.viewer.launch_passive(model, data) as viewer:
-    # Apply camera config to the first free camera (id 0)
-    viewer.cam.azimuth = DEFAULT_CAMERA_CONFIG["azimuth"]
-    viewer.cam.distance = DEFAULT_CAMERA_CONFIG["distance"]
-    viewer.cam.elevation = DEFAULT_CAMERA_CONFIG["elevation"]
-    viewer.cam.lookat[:] = DEFAULT_CAMERA_CONFIG["lookat"]
-    viewer.cam.type = DEFAULT_CAMERA_CONFIG["type"]
+# Create renderer
+renderer = mujoco.Renderer(model)
 
-    # Run viewer loop
-    start = time.time()
-    while viewer.is_running() and time.time() - start < 10:
-        mujoco.mj_step(model, data)
-        viewer.sync()
+# Create and configure a camera
+cam = mujoco.MjvCamera()
+mujoco.mjv_defaultFreeCamera(model, cam)
+
+cam.azimuth = 90.0
+cam.elevation = -25.0
+cam.distance = 3.0
+cam.lookat[:] = [0.0, 0.0, 0.0]
+cam.type = mujoco.mjtCamera.mjCAMERA_FREE
+
+# Step and render loop
+for _ in range(300):
+    mujoco.mj_step(model, data)
+
+    renderer.update_scene(data, cam)  # Pass camera here
+    img = renderer.render()
+
+    # Display frame with mediapy
+    cv2.imshow("Mujoco!", img)
+    time.sleep(0.001)
