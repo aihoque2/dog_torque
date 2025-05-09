@@ -64,26 +64,20 @@ class Actor(nn.Module):
 
 class Critic(nn.Module):
 
-	def __init__(self, state_dim, action_dim, hidden1=400, hidden2=300, hidden3=200):
+	def __init__(self, state_dim, hidden1=400, hidden2=300, hidden3=200):
 		"""
+        PPO critic only takes in state
 		:param state_dim: Dimension of input state (int)
-		:param action_dim: Dimension of input action (int)
 		:return:
+        Q(s)
 		"""
 		super(Critic, self).__init__()
 
 		self.state_dim = state_dim
-		self.action_dim = action_dim
-
-		self.fc1 = nn.Linear(state_dim, hidden1)
-		self.fc1.weight.data = fanin_init(self.fc1.weight.data.size())
-		self.fc2 = nn.Linear(hidden1+action_dim, hidden2)
-		self.fc2.weight.data = fanin_init(self.fc2.weight.data.size())
-		self.fc3 = nn.Linear(hidden2, hidden3)
-		self.fc3.weight.data = fanin_init(self.fc3.weight.data.size())
-
-		self.fc4 = nn.Linear(hidden3, 1)
-		self.fc4.weight.data.uniform_(-EPS,EPS)
+        self.fc1 = nn.Linear(state_dim, hidden1)
+        self.fc2 = nn.Linear(hidden1, hidden2)
+        self.fc3 = nn.Linear(hidden2, hidden3)
+        self.fc4 = nn.Linear(hidden3, 1)
 
 	def forward(self, state, action):
 		"""
@@ -92,9 +86,8 @@ class Critic(nn.Module):
 		:param action: Input Action (Torch Variable : [n,action_dim] )
 		:return: Value function : Q(S,a) (Torch Variable : [n,1] )
 		"""
-		s1 = F.relu(self.fc1(state))
-		s2 = F.relu(self.fc2(torch.cat([s1, action], 1)))
-		s3 = self.fc3(s2)
-		x = self.fc4(s3)
-
-		return x
+        x = F.relu(self.fc1(state))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = self.fc4(x)
+        return x

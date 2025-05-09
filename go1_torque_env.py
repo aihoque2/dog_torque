@@ -119,6 +119,8 @@ class Go1Env(MujocoEnv):
             for f in feet_site
         }
 
+        self._orientation = self.data.qpos[3:7]  # [w, x, y, z]
+
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=self._get_obs().shape, dtype=np.float64
         )
@@ -158,11 +160,12 @@ class Go1Env(MujocoEnv):
         base_linear_velocity = velocity[:3]
         base_angular_velocity = velocity[3:6]
         dofs_velocity = velocity[6:]
+        self._orientation = self.data.qpos[3:7]  # [w, x, y, z]
 
         obs = np.concatenate([
             base_linear_velocity * self._obs_scale["linear_velocity"],
             base_angular_velocity * self._obs_scale["angular_velocity"],
-            np.array([0.0, 0.0, 1.0]),  # projected gravity placeholder
+            self._orientation,
             self._desired_velocity * self._obs_scale["linear_velocity"],
             dofs_position * self._obs_scale["dofs_position"],
             dofs_velocity * self._obs_scale["dofs_velocity"],
@@ -258,8 +261,22 @@ class Go1Env(MujocoEnv):
 
     @property
     def non_flat_base_cost(self):
-        # Penalize the robot for not being flat on the ground
-        return np.sum(np.square(self.projected_gravity[:2]))
+        # Allocate space for the 3x3 rotation matrix as a flat (9,) array
+        R = np.zeros(9, dtype=np.float64)
+
+        # Fill R with the rotation matrix corresponding to the quaternion
+        mujoco.mju_quat2Mat(R, self._orientation)
+
+        # Robot's body z-axis (up vector in world frame) is the 3rd column of R
+        # Column-major access: elements 6, 7, 8
+        up_vector = np.array([R[6], R[7], R[8]])
+
+        # Dot product with world up [0, 0, 1]
+        alignment = np.dot(up_vector, np.array([0.0, 0.0, 1.0]))
+
+        # Cost = how far from upright
+        cost = 1.0 - alignment
+        return cost
 
     @property
     def collision_cost(self):
