@@ -430,6 +430,19 @@ class Go1Env(MujocoEnv):
         observation = self._get_obs()
 
         return observation
+        
+    def reset(self, *, seed=None, options=None):
+        super().reset(seed=seed)
+
+        obs = self.reset_model()
+
+        info = {
+            "x_position": self.data.qpos[0],
+            "y_position": self.data.qpos[1],
+            "distance_from_origin": np.linalg.norm(self.data.qpos[0:2]),
+        }
+
+        return obs, info
 
     @staticmethod
     def euler_from_quaternion(w, x, y, z):
