@@ -5,28 +5,43 @@ import torch
 from torch import nn
 from torch.distributions import MultivariateNormal
 from torch.optim import Adam
+from ai_model.buffer import RolloutBuffer
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class ActorCritic(nn.Module):
-    def __init__(self, state_dim, action_dim, has_continuous_action_space, action_std_init):
+    def __init__(self, state_dim, action_dim, action_lim, action_std_init):
         super(ActorCritic, self).__init__()
 
-        self.has_continuous_action_space = has_continuous_action_space
-        
-        if has_continuous_action_space:
-            self.action_dim = action_dim
-            self.action_var = torch.full((action_dim,), action_std_init * action_std_init).to(device)
-        # actor
-        if has_continuous_action_space :
-            self.actor = nn.Sequential(
-                            nn.Linear(state_dim, 64),
-                            nn.Tanh(),
-                            nn.Linear(64, 64),
-                            nn.Tanh(),
-                            nn.Linear(64, action_dim),
-                            nn.Tanh()
-                        )
+        self.action_dim = action_dim
+        self.action_var = torch.full((action_dim,), action_std_init * action_std_init).to(device)
+    
+        self.action_lim = action_lim
 
-                    )
+        # actor
+        self.actor = nn.Sequential(
+            nn.Linear(state_dim, 500),
+            nn.ReLU(),
+            nn.Linear(500, 400),
+            nn.ReLU(),
+            nn.Linear(400, 300),
+            nn.ReLU(),
+            nn.Linear(300, action_dim),
+            nn.Tanh()
+        )
+        
+        # critic
+        self.critic = nn.Sequential(
+            nn.Linear(state_dim, 400),
+            nn.ReLU(),
+            nn.Linear(400, 300),
+            nn.ReLU(),
+            nn.Linear(300, 200),
+            nn.ReLU(),
+            nn.Linear(200, 1)
+        )
+
         
     def set_action_std(self, new_action_std):
         self.action_var = torch.full((self.action_dim,), new_action_std * new_action_std).to(device)
@@ -36,13 +51,9 @@ class ActorCritic(nn.Module):
     
     def act(self, state):
 
-        if self.has_continuous_action_space:
-            action_mean = self.actor(state)
-            cov_mat = torch.diag(self.action_var).unsqueeze(dim=0)
-            dist = MultivariateNormal(action_mean, cov_mat)
-        else:
-            action_probs = self.actor(state)
-            dist = Categorical(action_probs)
+        action_mean = self.actor(state)*self.action_lim
+        cov_mat = torch.diag(self.action_var).unsqueeze(dim=0)
+        dist = MultivariateNormal(action_mean, cov_mat)
 
         action = dist.sample()
         action_logprob = dist.log_prob(action)
@@ -52,19 +63,12 @@ class ActorCritic(nn.Module):
     
     def evaluate(self, state, action):
 
-        if self.has_continuous_action_space:
-            action_mean = self.actor(state)
-            
-            action_var = self.action_var.expand_as(action_mean)
-            cov_mat = torch.diag_embed(action_var).to(device)
-            dist = MultivariateNormal(action_mean, cov_mat)
-            
-            # For Single Action Environments.
-            if self.action_dim == 1:
-                action = action.reshape(-1, self.action_dim)
-        else:
-            action_probs = self.actor(state)
-            dist = Categorical(action_probs)
+        action_mean = self.actor(state)*self.action_lim
+        
+        action_var = self.action_var.expand_as(action_mean)
+        cov_mat = torch.diag_embed(action_var).to(device)
+        dist = MultivariateNormal(action_mean, cov_mat)
+        
         action_logprobs = dist.log_prob(action)
         dist_entropy = dist.entropy()
         state_values = self.critic(state)
@@ -73,9 +77,7 @@ class ActorCritic(nn.Module):
 
 
 class PPO:
-    def __init__(self, state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, has_continuous_action_space, action_std_init=0.6):
-
-        self.has_continuous_action_space = has_continuous_action_space
+    def __init__(self, state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, action_std_init=0.6):
 
         self.action_std = action_std_init
 
@@ -84,14 +86,14 @@ class PPO:
         self.K_epochs = K_epochs
         
         self.buffer = RolloutBuffer()
-
-        self.policy = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
+        action_lim = 0.9
+        self.policy = ActorCritic(state_dim, action_dim, action_lim, action_std_init).to(device)
         self.optimizer = torch.optim.Adam([
                         {'params': self.policy.actor.parameters(), 'lr': lr_actor},
                         {'params': self.policy.critic.parameters(), 'lr': lr_critic}
                     ])
 
-        self.policy_old = ActorCritic(state_dim, action_dim, has_continuous_action_space, action_std_init).to(device)
+        self.policy_old = ActorCritic(state_dim, action_dim, action_lim, action_std_init).to(device)
         self.policy_old.load_state_dict(self.policy.state_dict())
         
         self.MseLoss = nn.MSELoss()

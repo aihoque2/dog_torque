@@ -107,7 +107,6 @@ class Go1Env(MujocoEnv):
 
         print("soft_joint_range: ", self._soft_joint_range)
 
-
         self._reset_noise_scale = 0.1
         self._last_action = np.zeros(12)
 
@@ -124,6 +123,8 @@ class Go1Env(MujocoEnv):
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=self._get_obs().shape, dtype=np.float64
         )
+
+        #print("observation space shape: ", self._get_obs().shape)
 
         self._main_body_id = mujoco.mj_name2id(
             self.model, mujoco.mjtObj.mjOBJ_BODY.value, "trunk"
