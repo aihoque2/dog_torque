@@ -1,4 +1,5 @@
 MUJOCO_LOG.TXT
 his.py
 __pycache__
-PPO_LOGS/
+PPO_LOGS
+PPO_LOGS/*
