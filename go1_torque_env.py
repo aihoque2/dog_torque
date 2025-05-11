@@ -118,8 +118,6 @@ class Go1Env(MujocoEnv):
             for f in feet_site
         }
 
-        self._orientation = self.data.qpos[3:7]  # [w, x, y, z]
-
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=self._get_obs().shape, dtype=np.float64
         )
@@ -156,25 +154,30 @@ class Go1Env(MujocoEnv):
         return observation, reward, terminated, truncated, info
 
     def _get_obs(self):
-        dofs_position = self.data.qpos[7:] - self.model.key_qpos[0, 7:]
-        velocity = self.data.qvel
+        dofs_position = self.data.qpos[7:].flatten() - self.model.key_qpos[0, 7:]
+
+        velocity = self.data.qvel.flatten()
         base_linear_velocity = velocity[:3]
         base_angular_velocity = velocity[3:6]
         dofs_velocity = velocity[6:]
-        self._orientation = self.data.qpos[3:7]  # [w, x, y, z]
-        roll, pitch, yaw = self.euler_from_quaternion(self._orientation)
 
-        obs = np.concatenate([
-            base_linear_velocity * self._obs_scale["linear_velocity"],
-            base_angular_velocity * self._obs_scale["angular_velocity"],
-            np.array([roll, pitch, yaw]),
-            self._desired_velocity * self._obs_scale["linear_velocity"],
-            dofs_position * self._obs_scale["dofs_position"],
-            dofs_velocity * self._obs_scale["dofs_velocity"],
-            self._last_action
-        ]).clip(-self._clip_obs_threshold, self._clip_obs_threshold)
+        desired_vel = self._desired_velocity
+        last_action = self._last_action
+        projected_gravity = self.projected_gravity
 
-        return obs
+        curr_obs = np.concatenate(
+            (
+                base_linear_velocity * self._obs_scale["linear_velocity"],
+                base_angular_velocity * self._obs_scale["angular_velocity"],
+                projected_gravity,
+                desired_vel * self._obs_scale["linear_velocity"],
+                dofs_position * self._obs_scale["dofs_position"],
+                dofs_velocity * self._obs_scale["dofs_velocity"],
+                last_action,
+            )
+        ).clip(-self._clip_obs_threshold, self._clip_obs_threshold)
+
+        return curr_obs
     
     @property
     def is_terminated(self):
@@ -263,22 +266,8 @@ class Go1Env(MujocoEnv):
 
     @property
     def non_flat_base_cost(self):
-        # Allocate space for the 3x3 rotation matrix as a flat (9,) array
-        R = np.zeros(9, dtype=np.float64)
-
-        # Fill R with the rotation matrix corresponding to the quaternion
-        mujoco.mju_quat2Mat(R, self._orientation)
-
-        # Robot's body z-axis (up vector in world frame) is the 3rd column of R
-        # Column-major access: elements 6, 7, 8
-        up_vector = np.array([R[6], R[7], R[8]])
-
-        # Dot product with world up [0, 0, 1]
-        alignment = np.dot(up_vector, np.array([0.0, 0.0, 1.0]))
-
-        # Cost = how far from upright
-        cost = 1.0 - alignment
-        return cost
+        # Penalize the robot for not being flat on the ground
+        return np.sum(np.square(self.projected_gravity[:2]))
 
     @property
     def collision_cost(self):
@@ -333,9 +322,6 @@ class Go1Env(MujocoEnv):
         return self._curriculum_base**0.997
 
     def _calc_reward(self, action):
-        # TODO: Add debug mode with custom Tensorboard calls for individual reward
-        #   functions to get a better sense of the contribution of each reward function
-        # TODO: Cost for thigh or calf contact with the ground
 
         # Positive Rewards
         linear_vel_tracking_reward = (
