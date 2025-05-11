@@ -1,4 +1,4 @@
-from go1_torque_env import Go1Env
+from his import Go1MujocoEnv
 import numpy as np
 import gymnasium
 import mujoco
@@ -17,7 +17,7 @@ import numpy as np
 def train():
     print("============================================================================================")
 
-    env = Go1Env(render_mode="human")
+    env = Go1MujocoEnv(render_mode="human")
     env_name = "GO1_Torque_Mujoco"
 
     ####### initialize environment hyperparameters ######
@@ -31,7 +31,7 @@ def train():
     log_freq = max_ep_len * 2           # log avg reward in the interval (in num timesteps)
     save_model_freq = int(1e5)          # save model frequency (in num timesteps)
 
-    action_std = 0.6                    # starting std for action distribution (Multivariate Normal)
+    action_std = 0.8                    # starting std for action distribution (Multivariate Normal)
     action_std_decay_rate = 0.05        # linearly decay action_std (action_std = action_std - action_std_decay_rate)
     min_action_std = 0.1                # minimum action_std (stop decay after action_std <= min_action_std)
     action_std_decay_freq = int(2.5e5)  # action_std decay frequency (in num timesteps)

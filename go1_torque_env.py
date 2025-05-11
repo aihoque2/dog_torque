@@ -391,8 +391,9 @@ class Go1Env(MujocoEnv):
             + default_joint_position_cost
         )
 
-        reward = max(0.0, rewards - costs)
-        # reward = rewards - self.curriculum_factor * costs
+        #reward = max(0.0, rewards - costs)
+        reward = rewards - costs
+        reward = max(-1.0, reward)
         reward_info = {
             "linear_vel_tracking_reward": linear_vel_tracking_reward,
             "reward_ctrl": -ctrl_cost,
@@ -430,7 +431,7 @@ class Go1Env(MujocoEnv):
         observation = self._get_obs()
 
         return observation
-        
+
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
 
