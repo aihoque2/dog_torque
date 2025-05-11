@@ -379,8 +379,7 @@ class Go1Env(MujocoEnv):
         )
 
         # reward = max(0.0, rewards - costs)
-        reward = rewards - costs
-        # reward = max(-1.0, reward)
+        reward = rewards - 0.3 * costs
         reward_info = {
             "linear_vel_tracking_reward": linear_vel_tracking_reward,
             "reward_ctrl": -ctrl_cost,
