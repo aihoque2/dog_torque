@@ -17,7 +17,7 @@ DEFAULT_CAMERA_CONFIG = {
 }
 
 
-class Go1Env(MujocoEnv):
+class TestEnv(MujocoEnv):
     metadata = {
         "render_modes": [
             "human",
@@ -67,7 +67,7 @@ class Go1Env(MujocoEnv):
             "orientation": 1.0,
             "collision": 1.0,
             "default_joint_position": 0.1,
-            "terminal": 0.0 # was 1000.0
+            "terminal": 1000.0 # was 1000.0
         }
 
         self._curriculum_base = 0.3
@@ -378,8 +378,8 @@ class Go1Env(MujocoEnv):
             + terminal_cost
         )
 
-        reward = max(0.0, rewards - costs)
-        #reward = rewards - 0.3 * costs
+        # reward = max(0.0, rewards - costs)
+        reward = rewards - 0.3 * costs
         reward_info = {
             "linear_vel_tracking_reward": linear_vel_tracking_reward,
             "reward_ctrl": -ctrl_cost,

@@ -25,14 +25,14 @@ def train():
     has_continuous_action_space = True  # continuous action space; else discrete
 
     max_ep_len = 1000                   # max timesteps in one episode
-    max_training_timesteps = int(3e6)   # break training loop if timeteps > max_training_timesteps
+    max_training_timesteps = int(5e6)   # break training loop if timeteps > max_training_timesteps
 
     print_freq = max_ep_len * 10        # print avg reward in the interval (in num timesteps)
     log_freq = max_ep_len * 2           # log avg reward in the interval (in num timesteps)
     save_model_freq = int(1e5)          # save model frequency (in num timesteps)
 
-    action_std = 0.8                    # starting std for action distribution (Multivariate Normal)
-    action_std_decay_rate = 0.05        # linearly decay action_std (action_std = action_std - action_std_decay_rate)
+    action_std = 1.0                  # formerly 0.8. starting std for action distribution (Multivariate Normal) 
+    action_std_decay_rate = 0.05        # formerly 0.05. linearly decay action_std (action_std = action_std - action_std_decay_rate)
     min_action_std = 0.1                # minimum action_std (stop decay after action_std <= min_action_std)
     action_std_decay_freq = int(2.5e5)  # action_std decay frequency (in num timesteps)
     #####################################################
@@ -141,8 +141,15 @@ def train():
 
     ################# training procedure ################
 
+    load_pretrained_policy = True
+    pretrained_checkpoint_path = "PPO_preTrained/GO1_Torque_Mujoco/PPO_GO1_Torque_Mujoco_0_0.pth"
+
     # initialize a PPO agent
     ppo_agent = PPO(state_dim, action_dim, lr_actor, lr_critic, gamma, K_epochs, eps_clip, action_std)
+
+    if load_pretrained_policy:
+        print(f"Loading pretrained weights from: {pretrained_checkpoint_path}")
+        ppo_agent.load(pretrained_checkpoint_path)
 
     # track total training time
     start_time = datetime.now().replace(microsecond=0)
@@ -211,7 +218,6 @@ def train():
                 print_avg_reward = round(print_avg_reward, 2)
 
                 print("Episode : {} \t\t Timestep : {} \t\t Average Reward : {}".format(i_episode, time_step, print_avg_reward))
-
                 print_running_reward = 0
                 print_running_episodes = 0
 
@@ -225,7 +231,7 @@ def train():
                 print("--------------------------------------------------------------------------------------------")
 
             # break; if the episode is over
-            if done:
+            if done and time_step > 250000:
                 break
 
         print_running_reward += current_ep_reward
