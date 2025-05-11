@@ -162,11 +162,12 @@ class Go1Env(MujocoEnv):
         base_angular_velocity = velocity[3:6]
         dofs_velocity = velocity[6:]
         self._orientation = self.data.qpos[3:7]  # [w, x, y, z]
+        roll, pitch, yaw = self.euler_from_quaternion(self._orientation)
 
         obs = np.concatenate([
             base_linear_velocity * self._obs_scale["linear_velocity"],
             base_angular_velocity * self._obs_scale["angular_velocity"],
-            self._orientation,
+            np.array([roll, pitch, yaw]),
             self._desired_velocity * self._obs_scale["linear_velocity"],
             dofs_position * self._obs_scale["dofs_position"],
             dofs_velocity * self._obs_scale["dofs_velocity"],
@@ -391,9 +392,9 @@ class Go1Env(MujocoEnv):
             + default_joint_position_cost
         )
 
-        #reward = max(0.0, rewards - costs)
+        # reward = max(0.0, rewards - costs)
         reward = rewards - costs
-        reward = max(-1.0, reward)
+        # reward = max(-1.0, reward)
         reward_info = {
             "linear_vel_tracking_reward": linear_vel_tracking_reward,
             "reward_ctrl": -ctrl_cost,

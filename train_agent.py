@@ -1,4 +1,4 @@
-from his import Go1MujocoEnv
+from go1_torque_env import Go1Env
 import numpy as np
 import gymnasium
 import mujoco
@@ -17,7 +17,7 @@ import numpy as np
 def train():
     print("============================================================================================")
 
-    env = Go1MujocoEnv(render_mode="human")
+    env = Go1Env(render_mode="human")
     env_name = "GO1_Torque_Mujoco"
 
     ####### initialize environment hyperparameters ######
@@ -59,10 +59,7 @@ def train():
     state_dim = env.observation_space.shape[0]
 
     # action space dimension
-    if has_continuous_action_space:
-        action_dim = env.action_space.shape[0]
-    else:
-        action_dim = env.action_space.n
+    action_dim = env.action_space.shape[0]
 
     ###################### logging ######################
 
