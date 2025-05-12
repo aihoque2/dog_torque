@@ -52,7 +52,7 @@ class Go1Env(MujocoEnv):
         self.reward_weights = {
             "linear_vel_tracking": 2.0,
             "angular_vel_tracking": 1.0,
-            "healthy": 0.0,
+            "healthy": 2.0,
             "feet_airtime": 1.0
         }
 
@@ -318,6 +318,12 @@ class Go1Env(MujocoEnv):
     @property
     def curriculum_factor(self):
         return self._curriculum_base**0.997
+    
+
+    @property
+    def healthy_reward(self):
+        return not self.is_terminated
+
 
     def _calc_reward(self, action):
 
@@ -330,6 +336,7 @@ class Go1Env(MujocoEnv):
             self.angular_velocity_tracking_reward
             * self.reward_weights["angular_vel_tracking"]
         )
+        healthy_reward = self.healthy_reward * self.reward_weights["healthy"]
         feet_air_time_reward = (
             self.feet_air_time_reward * self.reward_weights["feet_airtime"]
         )
@@ -337,6 +344,7 @@ class Go1Env(MujocoEnv):
             linear_vel_tracking_reward
             + angular_vel_tracking_reward
             + feet_air_time_reward
+            + healthy_reward
         )
 
         # Negative Costs

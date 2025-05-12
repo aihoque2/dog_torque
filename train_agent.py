@@ -31,7 +31,7 @@ def train():
     log_freq = max_ep_len * 2           # log avg reward in the interval (in num timesteps)
     save_model_freq = int(1e5)          # save model frequency (in num timesteps)
 
-    action_std = 1.0                  # formerly 0.8. starting std for action distribution (Multivariate Normal) 
+    action_std = 0.9                  # formerly 0.8. starting std for action distribution (Multivariate Normal) 
     action_std_decay_rate = 0.05        # formerly 0.05. linearly decay action_std (action_std = action_std - action_std_decay_rate)
     min_action_std = 0.1                # minimum action_std (stop decay after action_std <= min_action_std)
     action_std_decay_freq = int(2.5e5)  # action_std decay frequency (in num timesteps)
